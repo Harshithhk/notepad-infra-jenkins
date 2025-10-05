@@ -91,26 +91,6 @@ resource "aws_main_route_table_association" "infra_vpc_rta" {
 #   # }
 # }
 
-resource "aws_iam_role" "tf_jenkins_role" {
-  name = "tf_jenkins_role"
-
-  assume_role_policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Action": "sts:AssumeRole",
-      "Principal": {
-        "Service": "ec2.amazonaws.com"
-      },
-      "Effect": "Allow",
-      "Sid": ""
-    }
-  ]
-}
-EOF
-}
-
 resource "aws_default_security_group" "infra_dsg" {
   vpc_id = aws_vpc.infra_vpc.id
 
@@ -146,7 +126,6 @@ resource "aws_default_security_group" "infra_dsg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-
   egress {
     from_port   = var.jenkins_egress_from_port
     to_port     = var.jenkins_egress_to_port
@@ -157,11 +136,44 @@ resource "aws_default_security_group" "infra_dsg" {
   depends_on = [aws_vpc.infra_vpc]
 }
 
+resource "aws_iam_role" "tf_jenkins_role" {
+  name = "tf_jenkins_role"
+
+  assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": "sts:AssumeRole",
+      "Principal": {
+        "Service": "ec2.amazonaws.com"
+      },
+      "Effect": "Allow",
+      "Sid": ""
+    }
+  ]
+}
+EOF
+}
+
+# Attach the AWS-managed AdministratorAccess policy to the Jenkins role
+resource "aws_iam_role_policy_attachment" "tf_jenkins_admin_policy" {
+  role       = aws_iam_role.tf_jenkins_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+}
+
+# Create an instance profile so EC2 can assume this role
+resource "aws_iam_instance_profile" "tf_jenkins_instance_profile" {
+  name = "tf_jenkins_instance_profile"
+  role = aws_iam_role.tf_jenkins_role.name
+}
+
 resource "aws_instance" "tf_jenkins" {
   ami               = var.jenkins_ami
   availability_zone = var.availability_zone
   instance_type     = var.instance_type
   subnet_id         = aws_subnet.infra_subnet.id
+  iam_instance_profile   = aws_iam_instance_profile.tf_jenkins_instance_profile.name
 
   root_block_device {
     volume_size = 30
@@ -172,7 +184,7 @@ resource "aws_instance" "tf_jenkins" {
     Name = "tf-jenkins"
   }
 
-  depends_on = [aws_subnet.infra_subnet]
+  depends_on = [aws_subnet.infra_subnet, aws_iam_instance_profile.tf_jenkins_instance_profile]
 }
 
 // Resource to create an EIP

@@ -60,7 +60,7 @@ variable "jenkins_egress_to_port" {
 
 variable "jenkins_ami" {
   type    = string
-  default = "ami-0ee46d1a595cd0b96"
+  default = "ami-0503cf22733ef2e14"
 }
 
 variable "instance_type" {
