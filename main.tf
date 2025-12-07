@@ -83,7 +83,6 @@ module "image_processing" {
   vpc_id         = module.network.vpc_id
   cluster_arn    = module.ecs_cluster.cluster_arn
   subnet_ids     = module.network.public_subnet_ids
-
   image_repo_url = module.image_processing_ecr.repository_url
 }
 

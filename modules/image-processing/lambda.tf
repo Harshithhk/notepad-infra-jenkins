@@ -14,13 +14,15 @@ resource "aws_lambda_function" "image_launcher" {
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
 
   environment {
-    variables = {
-        CLUSTER_ARN           = var.cluster_arn
-        TASK_DEF_ARN          = aws_ecs_task_definition.image_worker.arn
-        SUBNETS               = join(",", var.subnet_ids)
-        WORKER_SECURITY_GROUP = aws_security_group.worker_sg.id
+  variables = {
+    CLUSTER_ARN           = var.cluster_arn
+    TASK_DEF_ARN          = aws_ecs_task_definition.image_worker.arn
+    SUBNETS               = join(",", var.subnet_ids)
+    WORKER_SECURITY_GROUP = aws_security_group.worker_sg.id
+    SERVICE_NAME          = var.service_name
   }
-  }
+}
+
 
   timeout = 30
 }

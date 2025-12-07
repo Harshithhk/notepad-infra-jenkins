@@ -3,6 +3,30 @@ resource "aws_cloudwatch_log_group" "worker_logs" {
   retention_in_days = 7
 }
 
+resource "aws_secretsmanager_secret" "anthropic_api_key" {
+  name = "${var.service_name}/ANTHROPIC_API_KEY"
+}
+
+resource "aws_iam_role_policy" "ecs_execution_secrets" {
+  name = "ecs-execution-secrets"
+  role = aws_iam_role.ecs_execution_role.id
+
+  policy = jsonencode({
+  Version = "2012-10-17"
+  Statement = [
+    {
+      Effect = "Allow"
+      Action = [
+        "secretsmanager:GetSecretValue"
+      ]
+      Resource = [
+        aws_secretsmanager_secret.anthropic_api_key.arn
+      ]
+    }
+  ]
+  })
+}
+
 resource "aws_ecs_task_definition" "image_worker" {
   family                   = var.service_name
   requires_compatibilities = ["FARGATE"]
@@ -18,6 +42,12 @@ resource "aws_ecs_task_definition" "image_worker" {
     image     = "${var.image_repo_url}:latest"
     essential = true
 
+    secrets = [
+      {
+        name = "ANTHROPIC_API_KEY"
+        valueFrom = aws_secretsmanager_secret.anthropic_api_key.arn
+      }
+    ]
 
     logConfiguration = {
       logDriver = "awslogs"
