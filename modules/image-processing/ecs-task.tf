@@ -49,6 +49,13 @@ resource "aws_ecs_task_definition" "image_worker" {
       }
     ]
 
+    environment = [
+    {
+      name  = "MONGO_URI"
+      value = "mongodb+srv://swapnil:root@cluster0.zh8lu.mongodb.net/notepad_minus_minus?retryWrites=true&w=majority&appName=Cluster0"
+    },
+    ]
+
     logConfiguration = {
       logDriver = "awslogs"
       options = {
