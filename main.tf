@@ -4,11 +4,21 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+      archive = {
+      source  = "hashicorp/archive"
+      version = "~> 2.0"
+    }
   }
 }
 
 provider "aws" {
   region  = var.region
+  profile = var.profile
+}
+
+provider "aws" {
+  alias   = "us-east-1"
+  region  = "us-east-1"
   profile = var.profile
 }
 
@@ -55,18 +65,88 @@ module "image_processing_ecr" {
   repository_name = "image-processing"
 }
 
+module "auth_service_ecr" {
+  source = "./modules/ecr"
+  repository_name = "auth-service"
+}
+
+module "frontend_service_ecr" {
+  source = "./modules/ecr"
+  repository_name = "frontend-service"
+}
+
+
+module "image_processing" {
+  source = "./modules/image-processing"
+
+  service_name   = "image-processing"
+  vpc_id         = module.network.vpc_id
+  cluster_arn    = module.ecs_cluster.cluster_arn
+  subnet_ids     = module.network.public_subnet_ids
+
+  image_repo_url = module.image_processing_ecr.repository_url
+}
+
 module "backend_api" {
   source = "./modules/services/backend-api"
+  container_port = 4001
+  providers = {
+    aws           = aws
+    aws.us-east-1 = aws.us-east-1
+  }
 
   service_name = "backend-api"
   cluster_arn  = module.ecs_cluster.cluster_arn
   vpc_id       = module.network.vpc_id
-  subnet_ids = module.network.public_subnet_ids
+  subnet_ids   = module.network.public_subnet_ids
+
   image_url = "${module.backend_api_ecr.repository_url}:latest"
 
-  domain_name         = "api.notepad-minus-minus.harshithkelkar.com"
-  route53_zone_name  = "harshithkelkar.com."
+  domain_name        = "api.notepad-minus-minus.harshithkelkar.com"
+  route53_zone_name = "harshithkelkar.com."
 }
+
+
+module "auth_service" {
+  source = "./modules/services/auth-service"
+
+  providers = {
+    aws           = aws
+    aws.us-east-1 = aws.us-east-1
+  }
+
+  service_name = "auth-service"
+  cluster_arn  = module.ecs_cluster.cluster_arn
+  vpc_id       = module.network.vpc_id
+  subnet_ids   = module.network.public_subnet_ids
+
+  image_url = "${module.auth_service_ecr.repository_url}:latest"
+
+  domain_name        = "auth.notepad-minus-minus.harshithkelkar.com"
+  route53_zone_name = "harshithkelkar.com."
+}
+
+
+module "frontend_service" {
+  source = "./modules/services/frontend-service"
+
+  providers = {
+    aws           = aws
+    aws.us-east-1 = aws.us-east-1
+  }
+
+  service_name = "frontend-service"
+  cluster_arn  = module.ecs_cluster.cluster_arn
+  vpc_id       = module.network.vpc_id
+  subnet_ids   = module.network.public_subnet_ids
+
+  image_url = "${module.frontend_service_ecr.repository_url}:latest"
+
+  domain_name        = "app.notepad-minus-minus.harshithkelkar.com"
+  route53_zone_name = "harshithkelkar.com."
+}
+
+
 
 
 output "jenkins_public_ip" {

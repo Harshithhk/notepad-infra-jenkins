@@ -1,13 +1,21 @@
 resource "aws_security_group" "alb_sg" {
   name   = "${var.service_name}-alb-sg"
   vpc_id = var.vpc_id
+  
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
-ingress {
-  from_port   = 443
-  to_port     = 443
-  protocol    = "tcp"
-  cidr_blocks = ["0.0.0.0/0"]
-}
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
 
 
   egress {
@@ -42,16 +50,26 @@ resource "aws_lb" "alb" {
   security_groups    = [aws_security_group.alb_sg.id]
 }
 resource "aws_lb_target_group" "tg" {
-  name        = "${var.service_name}-tg"
+  name        = "${var.service_name}-tg-${substr(uuid(), 0, 8)}"
   port        = var.container_port
   protocol    = "HTTP"
-  vpc_id      = var.vpc_id
   target_type = "ip"
+  vpc_id      = var.vpc_id
+
+  lifecycle {
+    create_before_destroy = true
+  }
 
   health_check {
-    path = "/health"
+    path                = "/health"
+    matcher             = "200"
+    interval            = 30
+    timeout             = 5
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
   }
 }
+
 resource "aws_lb_listener" "http_redirect" {
   load_balancer_arn = aws_lb.alb.arn
   port              = 80
@@ -99,6 +117,21 @@ resource "aws_ecs_task_definition" "task" {
     name      = var.service_name
     image     = var.image_url
     essential = true
+
+    environment = [
+    {
+      name  = "MONGO_URI"
+      value = "mongodb+srv://swapnil:root@cluster0.zh8lu.mongodb.net/notepad_minus_minus?retryWrites=true&w=majority&appName=Cluster0"
+    },
+    {
+      name  = "USE_HTTPS"
+      value = "false"
+    },
+    {
+      name  = "NODE_ENV"
+      value = "production"
+    }
+  ]
 
     portMappings = [{
       containerPort = var.container_port

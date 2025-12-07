@@ -18,15 +18,15 @@ variable "image_url" {
   type = string
 }
 
-variable "container_port" {
-  type    = number
-}
 variable "domain_name" {
-  type        = string
-  description = "Custom domain for backend API"
+  type = string
 }
 
 variable "route53_zone_name" {
-  type        = string
-  description = "Route53 hosted zone (example: harshithkelkar.com.)"
+  type = string
+}
+
+variable "container_port" {
+  type    = number
+  default = 4000
 }
